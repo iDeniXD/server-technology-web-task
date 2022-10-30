@@ -7,6 +7,9 @@ const userRouter = express.Router()
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 
+const config = process.env;
+
+
 userRouter.post("/register", async (req, res) => {
     try {
         // Get user input
@@ -44,16 +47,28 @@ userRouter.post("/register", async (req, res) => {
             approved_by
         });
     
-        // Create token
-        const token = jwt.sign(
+        // Create access token
+        const access_token = jwt.sign(
             { user_id: user._id, email },
-            process.env.TOKEN_KEY,
+            config.ACCESS_TOKEN_KEY,
             {
-                expiresIn: "10s",
+                expiresIn: "15m",
             }
         );
+
+        // Create refresh token
+        const refresh_token = jwt.sign(
+            { user_id: user._id, email },
+            config.REFRESH_TOKEN_KEY,
+            { expiresIn: '3d' });
+
+        // Assigning refresh token in http-only cookie 
+        res.cookie('jwt', refresh_token, { httpOnly: true, 
+            sameSite: 'None', secure: true, 
+            maxAge: 3 * 24 * 60 * 60 * 1000 });
+
         // save user token
-        user.token = token;
+        user.access_token = access_token;
     
         // return new user
         res.status(201).json(user);
@@ -77,15 +92,28 @@ userRouter.post("/login", async (req, res) => {
         const user = await User.findOne({ email });
 
         if (user && (await bcrypt.compare(password, user.password))) {
-            // Create token
-            const token = jwt.sign(
+
+            // Create access token
+            const access_token = jwt.sign(
                 { user_id: user._id, email },
-                    process.env.TOKEN_KEY,
-                { expiresIn: "10s" }
+                config.ACCESS_TOKEN_KEY,
+                { expiresIn: "15m" }
             );
 
+            // Create refresh token
+            const refresh_token = jwt.sign(
+                { user_id: user._id, email },
+                config.REFRESH_TOKEN_KEY,
+                { expiresIn: '3d' });
+    
+            // Assigning refresh token in http-only cookie 
+            res.cookie('jwt', refresh_token, { httpOnly: true, 
+                sameSite: 'None', secure: true, 
+                maxAge: 3 * 24 * 60 * 60 * 1000 });
+
             // save user token
-            user.token = token;
+            user.access_token = access_token;
+            user.refresh_token = refresh_token;
 
             // user
             return res.status(200).json(user);

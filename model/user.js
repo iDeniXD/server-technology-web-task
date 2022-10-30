@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     gender: {type: String, enum:['M','F'] },
     email: { type: String, unique: true, required: true },
     password: { type: String, required: true },
-    token: { type: String },
+    access_token: { type: String },
     approved_by: { type: this, required: false},
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'role', required: true }
 });
