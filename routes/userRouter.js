@@ -91,6 +91,7 @@ userRouter.post("/login", async (req, res) => {
         // Validate if user exist in database
         const user = await User.findOne({ email });
 
+
         if (user && (await bcrypt.compare(password, user.password))) {
 
             // Create access token
@@ -105,6 +106,7 @@ userRouter.post("/login", async (req, res) => {
                 { user_id: user._id, email },
                 config.REFRESH_TOKEN_KEY,
                 { expiresIn: '3d' });
+
     
             // Assigning refresh token in http-only cookie 
             res.cookie('jwt', refresh_token, { httpOnly: true, 
@@ -113,7 +115,6 @@ userRouter.post("/login", async (req, res) => {
 
             // save user token
             user.access_token = access_token;
-            user.refresh_token = refresh_token;
 
             // user
             return res.status(200).json(user);
