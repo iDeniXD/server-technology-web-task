@@ -6,27 +6,15 @@ const userRouter = express.Router()
 
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const validation = require('../middleware/validation');
 
 const config = process.env;
 
 
-userRouter.post("/register", async (req, res) => {
+userRouter.post("/register", validation.register, async (req, res) => {
     try {
         // Get user input
         const { first_name, last_name, email, password } = req.body;
-    
-        // Validate user input
-        if (!(first_name && last_name && email && password )) {
-            return res.status(400).send("All input is required");
-        }
-        
-        // check if user already exist
-        // Validate if user exist in database
-        const oldUser = await User.findOne({ email });
-    
-        if (oldUser) {
-            return res.status(401).send("email:This email is taken.");
-        }
     
         // Encrypt user password
         encryptedPassword = await bcrypt.hash(password, 10);
@@ -71,53 +59,38 @@ userRouter.post("/register", async (req, res) => {
 });
 
 // Login
-userRouter.post("/login", async (req, res) => {
+userRouter.post("/login", validation.login, async (req, res) => {
     try {
         // Get user input
         const { email, password } = req.body;
 
-        // Validate user input
-        if (!(email && password)) {
-            return res.status(400).send("All input is required");
-        }
         // Validate if user exist in database
         const user = await User.findOne({ email });
 
-        if (user) {
-            if ((await bcrypt.compare(password, user.password))) {
+        // Create access token
+        const access_token = jwt.sign(
+            { user_id: user._id, email },
+            config.ACCESS_TOKEN_KEY,
+            { expiresIn: "15m" }
+        );
 
-                // Create access token
-                const access_token = jwt.sign(
-                    { user_id: user._id, email },
-                    config.ACCESS_TOKEN_KEY,
-                    { expiresIn: "15m" }
-                );
-    
-                // Create refresh token
-                const refresh_token = jwt.sign(
-                    { user_id: user._id, email },
-                    config.REFRESH_TOKEN_KEY,
-                    { expiresIn: '3d' });
-    
-        
-                // Assigning refresh token in http-only cookie 
-                res.cookie('jwt', refresh_token, { httpOnly: true, 
-                    sameSite: 'None', secure: true, 
-                    maxAge: 3 * 24 * 60 * 60 * 1000 });
-    
-                // save user token
-                user.access_token = access_token;
-    
-                // user
-                return res.status(200).json(user);
-            } else {
-                return res.status(401).send("password:Wrong password");
-            }
-        } else {
-            return res.status(401).send("email:User with such email does not exist")
-        }
-        
-        res.status(401).send("Invalid Credentials");
+        // Create refresh token
+        const refresh_token = jwt.sign(
+            { user_id: user._id, email },
+            config.REFRESH_TOKEN_KEY,
+            { expiresIn: '3d' });
+
+
+        // Assigning refresh token in http-only cookie 
+        res.cookie('jwt', refresh_token, { httpOnly: true, 
+            sameSite: 'None', secure: true, 
+            maxAge: 3 * 24 * 60 * 60 * 1000 });
+
+        // save user token
+        user.access_token = access_token;
+
+        // user
+        return res.status(200).json(user);
     } catch (err) {
         console.log(err);
         return res.status(401).send("Something went wrong!")

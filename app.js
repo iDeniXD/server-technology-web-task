@@ -24,17 +24,9 @@ const userRouter = require('./routes/userRouter')
 app.use('/users', userRouter)
 
 const roleRouter = require('./routes/roleRouter')
-app.use('/roles',roleRouter)
+app.use('/roles', roleRouter)
 
 const withAuthRouter = require('./routes/withAuthRouter')
-app.use('/',withAuthRouter)
-
-app.get('/abc', (req, res) => {
-    res.status(200).json(
-        {
-            hello: "there"
-        }
-    )
-})
+app.use('/', withAuthRouter)
 
 module.exports = app;
