@@ -13,24 +13,19 @@ const config = process.env;
 userRouter.post("/register", async (req, res) => {
     try {
         // Get user input
-        const { first_name, last_name, gender, email, password, role, approved_by } = req.body;
+        const { first_name, last_name, email, password } = req.body;
     
         // Validate user input
-        if (!(first_name && last_name && email && password && role )) {
+        if (!(first_name && last_name && email && password )) {
             return res.status(400).send("All input is required");
         }
-
-        referencedRole = await Role.findOne({role: role});
-        if (!(referencedRole)) {
-            return res.status(400).send(`Such role ${role} does not exist!`);
-        }
-    
+        
         // check if user already exist
         // Validate if user exist in database
         const oldUser = await User.findOne({ email });
     
         if (oldUser) {
-            return res.status(409).send("User Already Exist. Please Login");
+            return res.status(401).send("email:This email is taken.");
         }
     
         // Encrypt user password
@@ -40,11 +35,8 @@ userRouter.post("/register", async (req, res) => {
         const user = await User.create({
             first_name,
             last_name,
-            gender,
             email: email.toLowerCase(), // sanitize: convert email to lowercase
             password: encryptedPassword,
-            role: referencedRole,
-            approved_by
         });
     
         // Create access token
@@ -71,7 +63,7 @@ userRouter.post("/register", async (req, res) => {
         user.access_token = access_token;
     
         // return new user
-        res.status(201).json(user);
+        return res.status(201).json(user);
     } catch (err) {
         console.log(err);
         return res.status(400).send("Something went wrong!")
@@ -91,39 +83,90 @@ userRouter.post("/login", async (req, res) => {
         // Validate if user exist in database
         const user = await User.findOne({ email });
 
+        if (user) {
+            if ((await bcrypt.compare(password, user.password))) {
 
-        if (user && (await bcrypt.compare(password, user.password))) {
-
-            // Create access token
-            const access_token = jwt.sign(
-                { user_id: user._id, email },
-                config.ACCESS_TOKEN_KEY,
-                { expiresIn: "15m" }
-            );
-
-            // Create refresh token
-            const refresh_token = jwt.sign(
-                { user_id: user._id, email },
-                config.REFRESH_TOKEN_KEY,
-                { expiresIn: '3d' });
-
+                // Create access token
+                const access_token = jwt.sign(
+                    { user_id: user._id, email },
+                    config.ACCESS_TOKEN_KEY,
+                    { expiresIn: "15m" }
+                );
     
-            // Assigning refresh token in http-only cookie 
-            res.cookie('jwt', refresh_token, { httpOnly: true, 
-                sameSite: 'None', secure: true, 
-                maxAge: 3 * 24 * 60 * 60 * 1000 });
-
-            // save user token
-            user.access_token = access_token;
-
-            // user
-            return res.status(200).json(user);
+                // Create refresh token
+                const refresh_token = jwt.sign(
+                    { user_id: user._id, email },
+                    config.REFRESH_TOKEN_KEY,
+                    { expiresIn: '3d' });
+    
+        
+                // Assigning refresh token in http-only cookie 
+                res.cookie('jwt', refresh_token, { httpOnly: true, 
+                    sameSite: 'None', secure: true, 
+                    maxAge: 3 * 24 * 60 * 60 * 1000 });
+    
+                // save user token
+                user.access_token = access_token;
+    
+                // user
+                return res.status(200).json(user);
+            } else {
+                return res.status(401).send("password:Wrong password");
+            }
+        } else {
+            return res.status(401).send("email:User with such email does not exist")
         }
-        res.status(400).send("Invalid Credentials");
+        
+        res.status(401).send("Invalid Credentials");
     } catch (err) {
         console.log(err);
-        return res.status(200).send("Something went wrong!")
+        return res.status(401).send("Something went wrong!")
     }
 });
+
+userRouter.post("/revoke", async (req, res) => {
+    try {
+        res.cookie('jwt', "", { httpOnly: true, 
+            sameSite: 'None', secure: true, 
+            maxAge: 0 });
+
+        res.status(200).send()
+    } catch (err) {
+        return res.status(401).send("Something went wrong!")
+    }
+});
+
+userRouter.get("/refresh", async (req, res) => {
+    try{
+        const refresh_token = req.cookies.jwt;
+        const decoded_refresh = jwt.verify(refresh_token, config.REFRESH_TOKEN_KEY);
+        req.user = decoded_refresh;
+
+        const new_access_token = jwt.sign(
+            { user_id: req.user.user_id, email: req.user.email },
+            config.ACCESS_TOKEN_KEY,
+            {
+                expiresIn: "15m",
+            }
+        );
+
+        // Create refresh token
+        const new_refresh_token = jwt.sign(
+            { user_id: req.user.user_id, email: req.user.email },
+            config.REFRESH_TOKEN_KEY,
+            { expiresIn: '3d' });
+
+        // Assigning refresh token in http-only cookie 
+        res.cookie('jwt', new_refresh_token, { httpOnly: true, 
+            sameSite: 'None', secure: true, 
+            maxAge: 3 * 24 * 60 * 60 * 1000 });
+
+        console.log("Both tokens have been refreshed");
+        return res.status(200).json({access_token: new_access_token}) 
+    } catch (err) {
+        console.log("None of the tokens have been refreshed")
+        return res.status(401).send("A refresh is required");
+    }
+})
 
 module.exports = userRouter

@@ -45,4 +45,11 @@ questionRouter.get("/", async (req, res) => {
     res.status(201).json(questions)
 });
 
+// Get
+questionRouter.get("/:id", async (req, res) => {
+    let question = await Question.findById( req.params.id )
+    question.author = await User.findById( question.author )
+    res.status(201).json(question)
+});
+
 module.exports = questionRouter
