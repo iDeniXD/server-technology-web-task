@@ -10,6 +10,7 @@ const register = async (req, res, next) => {
 
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
+            console.log(err.errors)
             res.status(412).send({
                 errors: err.errors
             });
@@ -20,11 +21,20 @@ const register = async (req, res, next) => {
 }
 
 const login = async (req, res, next) => {
-    const email = req.body.email;
+    const { email } = req.body;
 
     const validationRule = {
-        "email": "required|string|exist:User,email", // no 'email' because admin does not have @mail.com
-        "password": `required|string|min:8|max:50|RightPass:${email}`,
+        /* 
+        DO NOT TAKE DOWN 'required' IN EMAIL
+
+        If the email is not required the 'exist' registered function will be executed
+        with possible undefined value resulting in mongoose returning incorrect record!
+
+        Note:
+        Model.findOne({email: undefined}) will return the result of the latest successful reqest.
+        */
+        "email": "required|string|email|exist:User,email",
+        "password": `required|string|min:8|max:50|RightPass:${email ? email : ""}`,
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
@@ -34,7 +44,9 @@ const login = async (req, res, next) => {
         } else {
             next()
         }
-    }).catch(err => console.log(err))
+    }).catch(err => {
+        res.status(412).send()
+    })
 }
 
 module.exports = { register, login };

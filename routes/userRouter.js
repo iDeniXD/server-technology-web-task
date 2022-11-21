@@ -29,7 +29,7 @@ userRouter.post("/register", validation.register, async (req, res) => {
     
         // Create access token
         const access_token = jwt.sign(
-            { user_id: user._id, email },
+            { _id: user._id, email },
             config.ACCESS_TOKEN_KEY,
             {
                 expiresIn: "15m",
@@ -38,7 +38,7 @@ userRouter.post("/register", validation.register, async (req, res) => {
 
         // Create refresh token
         const refresh_token = jwt.sign(
-            { user_id: user._id, email },
+            { _id: user._id, email },
             config.REFRESH_TOKEN_KEY,
             { expiresIn: '3d' });
 
@@ -62,21 +62,23 @@ userRouter.post("/register", validation.register, async (req, res) => {
 userRouter.post("/login", validation.login, async (req, res) => {
     try {
         // Get user input
-        const { email, password } = req.body;
+        const { email } = req.body;
+        // Password is validated in validate.js
+        // It is done in validation so that a proper error can be sent through it
 
         // Validate if user exist in database
         const user = await User.findOne({ email });
 
         // Create access token
         const access_token = jwt.sign(
-            { user_id: user._id, email },
+            { _id: user._id, email },
             config.ACCESS_TOKEN_KEY,
             { expiresIn: "15m" }
         );
 
         // Create refresh token
         const refresh_token = jwt.sign(
-            { user_id: user._id, email },
+            { _id: user._id, email },
             config.REFRESH_TOKEN_KEY,
             { expiresIn: '3d' });
 
@@ -116,7 +118,7 @@ userRouter.get("/refresh", async (req, res) => {
         req.user = decoded_refresh;
 
         const new_access_token = jwt.sign(
-            { user_id: req.user.user_id, email: req.user.email },
+            { _id: req.user._id, email: req.user.email },
             config.ACCESS_TOKEN_KEY,
             {
                 expiresIn: "15m",
@@ -125,7 +127,7 @@ userRouter.get("/refresh", async (req, res) => {
 
         // Create refresh token
         const new_refresh_token = jwt.sign(
-            { user_id: req.user.user_id, email: req.user.email },
+            { _id: req.user._id, email: req.user.email },
             config.REFRESH_TOKEN_KEY,
             { expiresIn: '3d' });
 
@@ -134,10 +136,8 @@ userRouter.get("/refresh", async (req, res) => {
             sameSite: 'None', secure: true, 
             maxAge: 3 * 24 * 60 * 60 * 1000 });
 
-        console.log("Both tokens have been refreshed");
         return res.status(200).json({access_token: new_access_token}) 
     } catch (err) {
-        console.log("None of the tokens have been refreshed")
         return res.status(401).send("A refresh is required");
     }
 })

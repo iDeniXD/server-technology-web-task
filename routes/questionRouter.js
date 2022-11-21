@@ -11,7 +11,7 @@ questionRouter.post("/", async (req, res) => {
         // Get role input
         const { topic, content } = req.body;
 
-        const author = req.user.user_id
+        const author = req.user._id
         const date = Date.now()
     
         // Validate role input

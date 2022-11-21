@@ -35,17 +35,21 @@ Validator.registerAsync('exist', (value, attribute, req, passes) => {
 })
 
 Validator.registerAsync('RightPass', (password, email, req, passes) => {
-    if (!email) throw new Error("Email is not provided");
+    if (!email) passes(false, "The email is not provided");
 
     Models["User"].findOne({ email })
     .then(async (res) => {
         try {
-            const saved_pwd = res.password 
-            if ((await bcrypt.compare(password, saved_pwd))) {
-                passes(true) 
+            if (res) {
+                const saved_pwd = res.password 
+                if ((await bcrypt.compare(password, saved_pwd))) {
+                    passes(true) 
+                } else {
+                    passes(false, "Wrong password")
+                }  
             } else {
-                passes(false, "Wrong password")
-            }   
+                passes(false, "The email provided is wrong")
+            }             
         } catch { passes(false, "Password is required") }
     })
 })

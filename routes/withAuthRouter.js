@@ -3,24 +3,25 @@ const withAuthRouter = express.Router()
 
 const questionRouter = require('./questionRouter')
 
-const auth = require("../middleware/auth");
+const {verifyToken, verifyApproved} = require("../middleware/auth");
 
-withAuthRouter.use("/questions", auth, questionRouter)
+withAuthRouter.use(verifyToken)
 
-withAuthRouter.get("/comments", auth, (req, res) => {
+withAuthRouter.use("/questions", verifyApproved, questionRouter)
+
+withAuthRouter.get("/comments", verifyApproved, (req, res) => {
         res.status(200).send("here are your comments")
 })
 
-withAuthRouter.get("/versions", auth, (req, res) => {
+withAuthRouter.get("/versions", verifyApproved, (req, res) => {
         res.status(200).send("here are your versions")
 })
 
-withAuthRouter.get("/docs", auth, (req, res) => {
+withAuthRouter.get("/docs", verifyApproved, (req, res) => {
         res.status(200).send("here are your versions")
 })
 
-withAuthRouter.get("/verify", auth, (req, res) => {
-        console.log("Verified")
+withAuthRouter.get("/verify", (req, res) => {
         res.status(200).send()
 })
 
