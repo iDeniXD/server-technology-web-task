@@ -5,8 +5,10 @@ const Question = require("../model/question");
 const User = require("../model/user");
 const questionRouter = express.Router()
 
+const { create_question } = require('../middleware/validation');
+
 // Add a question
-questionRouter.post("/", async (req, res) => {
+questionRouter.post("/create", create_question, async (req, res) => {
     try {
         // Get role input
         const { topic, content } = req.body;
@@ -46,10 +48,22 @@ questionRouter.get("/", async (req, res) => {
 });
 
 // Get
-questionRouter.get("/:id", async (req, res) => {
-    let question = await Question.findById( req.params.id )
-    question.author = await User.findById( question.author )
-    res.status(201).json(question)
+questionRouter.get("/:phrase", async (req, res) => {
+    try {
+        const phrase = req.params.phrase
+        let questions = await Question.find({ 
+            $or: [
+                {topic: {$regex: '.*'+phrase+'.*'}},
+                {content: {$regex: '.*'+phrase+'.*'}} 
+            ]
+        }
+            
+        )
+        res.status(201).json(questions)
+    } catch {
+        res.status(201).json({})
+    }
+    
 });
 
 module.exports = questionRouter

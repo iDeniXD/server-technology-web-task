@@ -49,4 +49,22 @@ const login = async (req, res, next) => {
     })
 }
 
-module.exports = { register, login };
+const create_question = async (req, res, next) => {
+    const validationRule = {
+        "topic": "required|string|min:3|max:50",
+        "content": "required|string|min:3|max:2000",
+    };
+    await validator(req.body, validationRule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        res.status(412).send()
+    })
+}
+
+module.exports = { register, login, create_question };

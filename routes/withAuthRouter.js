@@ -22,7 +22,7 @@ withAuthRouter.get("/docs", verifyApproved, (req, res) => {
 })
 
 withAuthRouter.get("/verify", (req, res) => {
-        res.status(200).send()
+        res.status(200).json(req.user)
 })
 
 module.exports = withAuthRouter

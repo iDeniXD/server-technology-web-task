@@ -71,14 +71,14 @@ userRouter.post("/login", validation.login, async (req, res) => {
 
         // Create access token
         const access_token = jwt.sign(
-            { _id: user._id, email },
+            { _id: user._id, email, first_name: user.first_name, last_name: user.last_name },
             config.ACCESS_TOKEN_KEY,
             { expiresIn: "15m" }
         );
 
         // Create refresh token
         const refresh_token = jwt.sign(
-            { _id: user._id, email },
+            { _id: user._id, email, first_name: user.first_name, last_name: user.last_name },
             config.REFRESH_TOKEN_KEY,
             { expiresIn: '3d' });
 
@@ -118,7 +118,7 @@ userRouter.get("/refresh", async (req, res) => {
         req.user = decoded_refresh;
 
         const new_access_token = jwt.sign(
-            { _id: req.user._id, email: req.user.email },
+            { _id: req.user._id, email: req.user.email, first_name: req.user.first_name, last_name: req.user.last_name },
             config.ACCESS_TOKEN_KEY,
             {
                 expiresIn: "15m",
@@ -127,7 +127,7 @@ userRouter.get("/refresh", async (req, res) => {
 
         // Create refresh token
         const new_refresh_token = jwt.sign(
-            { _id: req.user._id, email: req.user.email },
+            { _id: req.user._id, email: req.user.email, first_name: req.user.first_name, last_name: req.user.last_name },
             config.REFRESH_TOKEN_KEY,
             { expiresIn: '3d' });
 
@@ -135,8 +135,11 @@ userRouter.get("/refresh", async (req, res) => {
         res.cookie('jwt', new_refresh_token, { httpOnly: true, 
             sameSite: 'None', secure: true, 
             maxAge: 3 * 24 * 60 * 60 * 1000 });
+        
+        const user = req.user
+        user.access_token = new_access_token
 
-        return res.status(200).json({access_token: new_access_token}) 
+        return res.status(200).json(user) 
     } catch (err) {
         return res.status(401).send("A refresh is required");
     }
