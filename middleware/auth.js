@@ -3,14 +3,18 @@ const jwt = require("jsonwebtoken");
 
 const config = process.env;
 
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
     const access_token =
     req.body.access_token || req.query.token || req.headers["x-access-token"]; // TODO: get rid of ||
 
     try {
         const decoded_access = jwt.verify(access_token, config.ACCESS_TOKEN_KEY);
         req.user = decoded_access;
-        return next();
+        if (await User.findById(req.user._id)) {
+            return next();
+        } else {
+            return res.status(404).send("Such user does not exist")
+        }
     } catch (err) {
         return res.status(401).send("Invalid access token")
     }

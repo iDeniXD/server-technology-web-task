@@ -21,6 +21,7 @@ withAuthRouter.get("/docs", verifyApproved, (req, res) => {
         res.status(200).send("here are your versions")
 })
 
+// verifies token only
 withAuthRouter.get("/verify", (req, res) => {
         res.status(200).json(req.user)
 })
