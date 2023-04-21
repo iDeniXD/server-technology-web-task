@@ -31,7 +31,7 @@ const login = async (req, res, next) => {
         with possible undefined value resulting in mongoose returning incorrect record!
 
         Note:
-        Model.findOne({email: undefined}) will return the result of the latest successful reqest.
+        Model.findOne({email: undefined}) will return the result of the last successful reqest.
         */
         "email": "required|string|email|exist:User,email",
         "password": `required|string|min:8|max:50|RightPass:${email ? email : ""}`,
@@ -53,6 +53,7 @@ const create_question = async (req, res, next) => {
     const validationRule = {
         "topic": "required|string|min:3|max:50",
         "content": "required|string|min:3|max:2000",
+        "accepted_comment": "string|exists:Comment,_id"
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
@@ -67,4 +68,41 @@ const create_question = async (req, res, next) => {
     })
 }
 
-module.exports = { register, login, create_question };
+const update_question = async (req, res, next) => {
+    const validationRule = {
+        "topic": "string|min:3|max:50",
+        "content": "string|min:3|max:2000",
+        "accepted_comment": "string|exists:Comment,_id"
+    };
+    await validator(req.body, validationRule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        res.status(412).send()
+    })
+}
+
+const comment_validator = async (req, res, next) => {
+    const validationRule = {
+        "content": "required|string|min:1|max:500",
+        "commentId" : "string|exists:Comment,_id",
+    };
+    await validator(req.body, validationRule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        res.status(412).send()
+    })
+}
+
+module.exports = { register, login, create_question, update_question, comment_validator };

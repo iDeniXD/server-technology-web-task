@@ -21,7 +21,8 @@ const verifyToken = async (req, res, next) => {
 }
 
 const verifyApproved = async (req, res, next) => {
-    const { approved_by } = await User.findById(req.user._id)
+    // TODO: test if not approved
+    const { approved_by } = await User.findById(req.user._id);
 
     const approving_user = await User.findById( approved_by )
     if (approving_user) {
