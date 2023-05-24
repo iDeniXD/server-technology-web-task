@@ -1,8 +1,10 @@
 const validator = require('../helpers/validate');
+const multer = require('multer')
+
 
 const register = async (req, res, next) => {
     const validationRule = {
-        "email": "required|string|email|notTaken:User,email",
+        "email": "required|string|email|max:250|notTaken:User,email",
         "first_name": "required|min:3|max:100|string",
         "last_name": "required|min:3|max:150|string",
         "password": "required|string|min:8|max:50|confirmed",
@@ -10,14 +12,16 @@ const register = async (req, res, next) => {
 
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
-            console.log(err.errors)
-            res.status(412).send({
+            return res.status(412).send({
                 errors: err.errors
             });
         } else {
             next()
         }
-    }).catch(err => console.log(err))
+    }).catch(err => {
+        console.log(err)
+        return res.status(400).send({message: 'Something went wrong'});
+    })
 }
 
 const login = async (req, res, next) => {
@@ -33,19 +37,20 @@ const login = async (req, res, next) => {
         Note:
         Model.findOne({email: undefined}) will return the result of the last successful reqest.
         */
-        "email": "required|string|email|exist:User,email",
-        "password": `required|string|min:8|max:50|RightPass:${email ? email : ""}`,
+        "email": "required|string|email|exists:User,email",
+        "password": `required|string|min:8|max:50|RightPass:${email}`
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
-            res.status(412).send({
+            return res.status(412).send({
                 errors: err.errors
             });
         } else {
             next()
         }
     }).catch(err => {
-        res.status(412).send()
+        console.log(err);
+        return res.status(400).send({message: 'Something went wrong'})
     })
 }
 
@@ -105,4 +110,63 @@ const comment_validator = async (req, res, next) => {
     })
 }
 
-module.exports = { register, login, create_question, update_question, comment_validator };
+const release_validator = async (req, res, next) => {
+    const rule = {
+        'version': 'required|string|min:1|max:10',
+        'description': 'string|max:200',
+        'changelog': 'required|string|min:1|max:10000',
+        'images': 'array|max:15',
+        'documentation': 'string|required|existsId:Documentation',
+        'file': 'required|file_exists_s3'
+    }
+    await validator(req.body, rule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        console.log(err);
+        res.status(412).send()
+    })
+}
+
+const documentation_validator = async (req, res, next) => {
+    const rule = {
+        'version': 'required|string',
+        'text': 'required|string|min:200|max:10000',
+        'images': 'array|max:30',
+    }
+    await validator(req.body, rule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        res.status(412).send()
+    })
+}
+
+const uploadImageError = (error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        return res.status(400).json({ message: error.message });
+    } else if (error) {
+        return res.status(500).json({ message: error.message });
+    }
+    next();
+}
+
+module.exports = { 
+    register, login, 
+    create_question, 
+    update_question, 
+    comment_validator, 
+    release_validator, 
+    documentation_validator, 
+    uploadImageError 
+};

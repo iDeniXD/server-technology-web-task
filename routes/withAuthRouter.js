@@ -4,26 +4,39 @@ const withAuthRouter = express.Router()
 const questionRouter = require('./questionRouter')
 const [commentRouterPostGet, commentRouterPutDelete] = require('./commentRouter')
 
-const {verifyToken, verifyApproved} = require("../middleware/auth");
+const releaseRouter = require('./releaseRouter')
+const imageRouter = require('./imageRouter')
+const fileRouter = require('./fileRouter')
+
+const documentationRouter = require('./documentationRouter')
+
+const {userWithAuthRouter} = require('./userRouter')
+const {safeUserFields} = require('../controllers/userController')
+
+
+const {verifyToken, verifyAccepted, verifyHead} = require("../middleware/auth");
 
 withAuthRouter.use(verifyToken)
 
-withAuthRouter.use("/questions", verifyApproved, questionRouter)
-
-withAuthRouter.use("/questions/:questionID/comments", verifyApproved, commentRouterPostGet)
-withAuthRouter.use("/comments/:id", verifyApproved, commentRouterPutDelete)
-
-withAuthRouter.get("/versions", verifyApproved, (req, res) => {
-        res.status(200).send("here are your versions")
-})
-
-withAuthRouter.get("/docs", verifyApproved, (req, res) => {
-        res.status(200).send("here are your versions")
-})
-
 // verifies token only
 withAuthRouter.get("/verify", (req, res) => {
-        res.status(200).json(req.user)
+        res.status(200).send(safeUserFields(req.user))
 })
+
+
+withAuthRouter.use(verifyAccepted);
+
+withAuthRouter.use("/questions", questionRouter)
+
+withAuthRouter.use("/questions/:questionID/comments", commentRouterPostGet)
+withAuthRouter.use("/comments/:id", commentRouterPutDelete)
+
+withAuthRouter.use("/releases", releaseRouter)
+withAuthRouter.use("/images", verifyHead, imageRouter)
+withAuthRouter.use("/files", fileRouter)
+
+withAuthRouter.use("/documentation", documentationRouter)
+
+withAuthRouter.use('/users', userWithAuthRouter)
 
 module.exports = withAuthRouter

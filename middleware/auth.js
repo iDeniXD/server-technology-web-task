@@ -4,32 +4,52 @@ const jwt = require("jsonwebtoken");
 const config = process.env;
 
 const verifyToken = async (req, res, next) => {
-    const access_token =
-    req.body.access_token || req.query.token || req.headers["x-access-token"]; // TODO: get rid of ||
+    const access_token = req.headers["x-access-token"];
 
     try {
         const decoded_access = jwt.verify(access_token, config.ACCESS_TOKEN_KEY);
-        req.user = decoded_access;
-        if (await User.findById(req.user._id)) {
+        const { _id } = decoded_access;
+        const user = await User.findById( _id )
+        if (user) {
+            req.user = user;
             return next();
         } else {
-            return res.status(404).send("Such user does not exist")
+            return res.status(404).send({message: "Such user does not exist"})
         }
     } catch (err) {
-        return res.status(401).send("Invalid access token")
+        return res.status(401).send({message: "Invalid access token"})
     }
 }
 
-const verifyApproved = async (req, res, next) => {
-    // TODO: test if not approved
-    const { approved_by } = await User.findById(req.user._id);
-
-    const approving_user = await User.findById( approved_by )
-    if (approving_user) {
+const verifyAccepted = async (req, res, next) => {
+    const { status } = req.user;
+    if (status === 'accepted') {
         return next();
     }
 
-    return res.status(401).send("You have not been approved yet!")
+    if (status === 'pending') {
+        return res.status(403).send({message: 'You have not been approved yet'})
+    }
+
+    if (status === 'rejected') {
+        return res.status(403).send({message: 'You have been rejected'})
+    }
+
+    return res.status(400).send({message: 'Something went wrong'})
 }
 
-module.exports = {verifyToken, verifyApproved};
+const roles = {
+    'head': ['head', 'admin'],
+    'admin': ['admin']
+}
+const verifyHead = async (req, res, next) => {
+    if (roles['head'].includes(req.user.role)) return next();
+    return res.status(403).send({message: 'You do not have the required role for this action'});
+}
+
+const verifyAdmin = async (req, res, next) => {
+    if (roles['admin'].includes(req.user.role)) return next();
+    return res.status(403).send({message: 'You do not have the required role for this action'});
+}
+
+module.exports = {verifyToken, verifyAccepted, verifyHead, verifyAdmin};

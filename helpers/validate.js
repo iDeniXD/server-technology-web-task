@@ -2,6 +2,9 @@ const Models = require('../model')
 const Validator = require('validatorjs')
 const bcrypt = require('bcryptjs')
 
+const {s3} = require('../config/aws')
+const { AWS_BUCKET_NAME } = process.env;
+
 const validator = async (body, rules, customMessage, callback) => {
     const validation = new Validator(body, rules, customMessage);
     validation.passes(() => callback(true));
@@ -30,11 +33,26 @@ Validator.registerAsync('notTaken', (value, attribute, req, passes) => {
     find_existing(value, attribute, passes, onFind=false)
 })
 
-Validator.registerAsync('exist', (value, attribute, req, passes) => {
+Validator.registerAsync('exists', (value, attribute, req, passes) => {
     find_existing(value, attribute, passes, onFind=true)
 })
 
-Validator.registerAsync('RightPass', (password, email, req, passes) => {
+Validator.registerAsync('existsId', (value, attribute, req, passes) => {
+    if (!attribute) throw new Error("Requirements error");
+
+    const table = attribute;
+
+    Models[table].findById(value)
+    .then((res) => {
+        if (res) {
+            passes(true)
+        } else {
+            passes(false, `Such ${table} does not exist`)
+        }
+    })
+})
+
+Validator.registerAsync('RightPass', (password, email, param, passes) => {
     if (!email) passes(false, "The email is not provided");
 
     Models["User"].findOne({ email })
@@ -51,6 +69,20 @@ Validator.registerAsync('RightPass', (password, email, req, passes) => {
                 passes(false, "The email provided is wrong")
             }             
         } catch { passes(false, "Password is required") }
+    })
+})
+
+Validator.registerAsync('file_exists_s3', (file, attribute, param, passes) => {
+    const params = {
+        Bucket: AWS_BUCKET_NAME,
+        Key: file
+    }
+    s3.headObject(params, function (err, data) {
+        if (err) {
+            passes(false, 'Such file does not exist')
+        } else {
+            passes(true); 
+        }
     })
 })
 
