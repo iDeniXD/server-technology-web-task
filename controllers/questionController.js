@@ -12,7 +12,7 @@ exports.getAllQuestions = async (req, res) => {
         })
             .sort({date: 'desc'})
             .populate('author')
-        res.status(200).json(questions)
+        res.status(200).send(questions)
     } catch (err) {
         console.error(err)
         res.status(400).send({message: 'Something went wrong'})
@@ -28,9 +28,8 @@ exports.getQuestionById = async (req, res) => {
         }
         
         const comments = await Comment.find({question: question._id}).populate({path: 'author', select: 'first_name last_name'}).sort({date: 'desc'})
-        question.comments = comments;
 
-        res.status(200).json(question)
+        res.status(200).send({...question.toObject(), comments})
     } catch (e) {
         console.log(e)
         if (e.name === 'CastError') {
@@ -61,16 +60,11 @@ exports.postQuestion = async (req, res) => {
 exports.updateQuestionById = async (req, res) => {
     try {
         const qID = req.params.id;
-        const {topic, content, accepted_comment} = req.body;
+        const { topic, content } = req.body;
         
         const question = await Question.findById( qID )
         if (!question) {
             return res.status(404).send({message: 'Question does not exist'});
-        }
-
-        const comment = Comment.findById(accepted_comment);
-        if (comment.question && !comment.question.equals(qID)) {
-            return res.status(403).send({message: 'The comment to be accepted does not exist'});
         }
 
         if (!question.author.equals(req.user._id) && req.user.role !== 'admin') {
@@ -79,7 +73,6 @@ exports.updateQuestionById = async (req, res) => {
 
         question.topic = topic ?? question.topic;
         question.content = content ?? question.content;
-        question.accepted_comment = accepted_comment ?? question.accepted_comment;
         await question.save()
         return res.status(201).send(question);
 

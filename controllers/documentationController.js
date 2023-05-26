@@ -1,5 +1,7 @@
 const Documentation = require("../model/documentation");
 
+const {uploader} = require('cloudinary').v2;
+
 exports.getAllDocumentations = async (req, res) => {
     try{
         const documentations = await Documentation.find({}).sort({date: 'desc'}).select('_id version')
@@ -74,7 +76,7 @@ exports.updateDocumentation = async (req, res) => {
             return res.status(404).send({message: 'Documentation does not exist'});
         }
         
-        if (!documentation.author.equals(req.user._id) && req.user !== 'admin') {
+        if (!documentation.author.equals(req.user._id) && req.user.role !== 'admin') {
             return res.status(403).send({message: 'Only original posters can edit their documentations'});
         }
 
@@ -83,7 +85,7 @@ exports.updateDocumentation = async (req, res) => {
         documentation.images = images ?? documentation.images;
 
         await documentation.save()
-        return res.status(201).json(documentation);
+        return res.status(201).send(documentation);
     } catch (e) {
         console.log(e)
         res.status(400).send({message: "Something went wrong"})
@@ -97,6 +99,10 @@ exports.deleteDocumentation = async (req, res) => {
 
         if (!documentation.author.equals(req.user._id) && req.user.role !== 'admin')
             return res.status(403).send({message: 'Only original posters can delete their documentations'})
+
+        // Delete images
+        const { images } = documentation;
+        await Promise.all(images.map(image => uploader.destroy(image)))
             
         await documentation.remove();
         return res.status(202).send({})

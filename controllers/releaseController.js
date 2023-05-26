@@ -1,9 +1,14 @@
 const Release = require("../model/release");
 
+const {uploader} = require('cloudinary').v2;
+
+const {s3} = require('../config/aws')
+const { AWS_BUCKET_NAME } = process.env;
+
 exports.getAllReleases = async (req, res) => {
     try{
         const releases = await Release.find({}).sort({date: 'desc'}).populate('author')
-        res.status(200).json(releases)
+        res.status(200).send(releases)
     } catch (err) {
         console.error(err)
         res.status(400).send({message: 'Something went wrong'})
@@ -25,7 +30,7 @@ exports.createRelease = async (req, res) => {
             documentation
         });
     
-        res.status(201).json(release);
+        res.status(201).send(release);
     } catch (err) {
         console.log(err);
         res.status(400).send({message: 'Something went wrong'})
@@ -39,7 +44,7 @@ exports.getReleaseById = async (req, res) => {
             return res.status(404).send({message: "Release does not exist"}); 
         }
 
-        res.status(200).json(release)
+        res.status(200).send(release)
     } catch (e) {
         console.log(e);
         if (e.name === 'CastError') {
@@ -100,11 +105,20 @@ exports.deleteRelease = async (req, res) => {
     try {
         const release = await Release.findById( req.params.id )
 
-        // TODO: delete files and images
-
         if (!release.author.equals(req.user._id) && req.user.role !== 'admin')
             return res.status(403).send({message: 'Only original posters can delete their releases'})
             
+        // Delete images
+        const {images, file} = release;
+        await Promise.all(images.map(image => uploader.destroy(image)))
+
+        // Delete file
+        const params = {
+            Bucket: AWS_BUCKET_NAME,
+            Key: file
+        };
+        s3.deleteObject(params, () => {});
+
         await release.remove();
         return res.status(200).send({});
         

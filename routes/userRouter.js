@@ -15,7 +15,7 @@ userRouter.get("/refresh", userController.refresh)
 userWithAuthRouter.use(verifyHead);
 userWithAuthRouter.post('/accept/:id', userController.accept);
 userWithAuthRouter.post('/reject/:id', userController.reject);
-userWithAuthRouter.put('/promote/:id', userController.promote);
+userWithAuthRouter.put('/promote/:id', validation.role, userController.promote);
 userWithAuthRouter.get('/accepted-list', userController.listOfAccepted);
 
 module.exports = {userRouter, userWithAuthRouter}

@@ -6,7 +6,7 @@ exports.getComments = async (req, res) => {
     const { questionID } = req.params;
     try{
         const comments = await Comment.find({question: questionID})
-        res.status(200).json(comments)
+        res.status(200).send(comments)
     } catch (err) {
         console.error(err);
         res.status(400).send({message: 'Something went wrong'})
@@ -16,7 +16,7 @@ exports.getComments = async (req, res) => {
 
 exports.postComment = async (req, res) => {
     try {
-        const { content, commentID } = req.body;
+        const { content } = req.body;
         const { questionID } = req.params;
 
         referencedQuestion = await Question.findById(questionID);
@@ -24,24 +24,15 @@ exports.postComment = async (req, res) => {
             return res.status(400).send(`Such question does not exist!`);
         }
 
-        var referencedComment = null;
-        if (commentID !== undefined) {
-            referencedComment = await Comment.findById(questionID);
-            if (referencedComment == null) {
-                return res.status(400).send(`Such comment does not exist!`);
-            }
-        }
-
         const comment = await Comment.create({
             content,
             author: req.user._id,
-            parent_comment: referencedComment,
             question: referencedQuestion
         });
 
         await comment.populate('author')
     
-        res.status(201).json(comment);
+        res.status(201).send(comment);
     } catch (err) {
         console.log(err);
         res.status(402).send(err)
@@ -61,7 +52,7 @@ exports.updateCommentById = async (req, res) => {
         comment.commentID = commentID ?? comment.commentID;
         await comment.save()
         await comment.populate('author')
-        return res.status(201).json(comment);
+        return res.status(201).send(comment);
         
     } catch (e) {
         console.log(e)

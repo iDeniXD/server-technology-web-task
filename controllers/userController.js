@@ -21,6 +21,30 @@ function safeUserFields(user) {
 }
 exports.safeUserFields = safeUserFields;
 
+function generateAccessRefreshTokens(user, res) {
+    // Create access token
+    const access_token = jwt.sign(
+        { _id: user._id },
+        ACCESS_TOKEN_KEY,
+        {
+            expiresIn: "15m",
+        }
+    );
+
+    // Create refresh token
+    const refresh_token = jwt.sign(
+        { _id: user._id },
+        REFRESH_TOKEN_KEY,
+        { expiresIn: '3d' });
+
+    // Saving Cookie
+    res.cookie('jwt', refresh_token, { httpOnly: true,
+        sameSite: 'None', secure: true, 
+        maxAge: 3 * 24 * 60 * 60 * 1000 });
+
+    user.access_token = access_token;
+}
+
 exports.register = async (req, res) => {
     try {
         const { first_name, last_name, email, password } = req.body;
@@ -36,28 +60,9 @@ exports.register = async (req, res) => {
             password: encryptedPassword,
         });
     
-        // Create access token
-        const access_token = jwt.sign(
-            { _id: user._id },
-            ACCESS_TOKEN_KEY,
-            {
-                expiresIn: "15m",
-            }
-        );
+        generateAccessRefreshTokens(user, res);
 
-        // Create refresh token
-        const refresh_token = jwt.sign(
-            { _id: user._id },
-            REFRESH_TOKEN_KEY,
-            { expiresIn: '3d' });
-
-        // Saving Cookie
-        res.cookie('jwt', refresh_token, { httpOnly: true,
-            sameSite: 'None', secure: true, 
-            maxAge: 3 * 24 * 60 * 60 * 1000 });
-
-        user.access_token = access_token;
-        return res.status(201).json(safeUserFields(user));
+        return res.status(201).send(safeUserFields(user));
     } catch (err) {
         console.log(err);
         return res.status(400).send({message: "Something went wrong"})
@@ -70,30 +75,12 @@ exports.login = async (req, res) => {
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).send({message: "User not found"})
+            return res.status(404).send({message: "Such user does not exist"})
         }
 
-        // Create access token
-        const access_token = jwt.sign(
-            { _id: user._id },
-            ACCESS_TOKEN_KEY,
-            { expiresIn: "15m" }
-        );
+        generateAccessRefreshTokens(user, res);
 
-        // Create refresh token
-        const refresh_token = jwt.sign(
-            { _id: user._id },
-            REFRESH_TOKEN_KEY,
-            { expiresIn: '3d' });
-
-
-        // Saving Cookie
-        res.cookie('jwt', refresh_token, { httpOnly: true, 
-            sameSite: 'None', secure: true, 
-            maxAge: 3 * 24 * 60 * 60 * 1000 });
-
-        user.access_token = access_token;
-        return res.status(200).json(safeUserFields(user));
+        return res.status(200).send(safeUserFields(user));
     } catch (err) {
         console.log(err);
         return res.status(400).send({message: "Something went wrong"})
@@ -115,40 +102,28 @@ exports.revoke = async (req, res) => {
 exports.refresh = async (req, res) => {
     try{
         const refresh_token = req.cookies.jwt;
+        if (refresh_token == null)
+            return res.status(400).send({message: 'No refresh token provided'});
+
         const decoded_refresh = jwt.verify(refresh_token, REFRESH_TOKEN_KEY);
         const { _id } = decoded_refresh;
 
         const user = await User.findById( _id );
         if (user == null) {
+            // remove JWT token
+            res.cookie('jwt', "", { httpOnly: true, 
+                sameSite: 'None', secure: true, 
+                maxAge: 0 });
+
             return res.status(404).send({message: 'Such user does not exist'});
         } 
 
+        generateAccessRefreshTokens(user, res);
 
-        // Create access token
-        const new_access_token = jwt.sign(
-            { _id: user._id },
-            ACCESS_TOKEN_KEY,
-            {
-                expiresIn: "15m",
-            }
-        );
-
-        // Create refresh token
-        const new_refresh_token = jwt.sign(
-            { _id: user._id },
-            REFRESH_TOKEN_KEY,
-            { expiresIn: '3d' });
-
-        // Saving Cookie
-        res.cookie('jwt', new_refresh_token, { httpOnly: true, 
-            sameSite: 'None', secure: true, 
-            maxAge: 3 * 24 * 60 * 60 * 1000 });
-        
-        user.access_token = new_access_token
-        return res.status(200).json(safeUserFields(user)) 
+        return res.status(200).send(safeUserFields(user)) 
     } catch (err) {
         console.log(err);
-        return res.status(401).send({message: "A refresh is required"});
+        return res.status(400).send({message: "Something went wrong"});
     }
 }
 
@@ -168,6 +143,9 @@ exports.accept = async (req, res) => {
             return res.status(403).send({message: 'You cannot accept yourself'})
     
         const user = await User.findById(id);
+
+        if (user == null)
+            return res.status(404).send({message: 'Such user does not exist'});
 
         // Check if the target user is not accepted by an existing user
         if (user.status === 'accepted')
@@ -204,6 +182,12 @@ exports.reject = async (req, res) => {
             return res.status(403).send({message: 'You cannot reject yourself'})
     
         const user = await User.findById(id);
+
+        if (user == null)
+            return res.status(404).send({message: 'Such user does not exist'});
+
+        if (user.status === 'accepted' && !user.accepted_by.equals(rejectingUser._id))
+            return res.status(403).send({message: 'You do not have right to reject this user'});
 
         // Check if the target user is not accepted by an existing user
         if (user.status === 'rejected')
@@ -247,10 +231,16 @@ exports.promote = async (req, res) => {
         }
 
         const user = await User.findById(id);
+        
+        if (user == null)
+            return res.status(404).send({message: 'Such user does not exist'});
 
         // Check if the target user is not yet accepted
         if (user.status !== 'accepted')
             return res.status(405).send({message: 'Cannot promote this user'});
+
+        if (!user.accepted_by.equals(promotingUser._id))
+            return res.status(403).send({message: 'You do not have right to promote this user'});
 
         // promoted
         if (ROLES[user.role] < ROLES[role]) {

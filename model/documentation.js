@@ -13,7 +13,7 @@ const documentationSchema = new mongoose.Schema({
     },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
     date: { type: Date, default: Date.now, required: true },
-    text: { type: String, minLength: 1, maxLength: 50000, required: true },
+    text: { type: String, minLength: 200, maxLength: 50000, required: true },
     images: [String],
 });
 

@@ -66,7 +66,7 @@ Validator.registerAsync('RightPass', (password, email, param, passes) => {
                     passes(false, "Wrong password")
                 }  
             } else {
-                passes(false, "The email provided is wrong")
+                passes(false, "Such user does not exist")
             }             
         } catch { passes(false, "Password is required") }
     })

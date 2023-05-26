@@ -14,7 +14,7 @@ const {userWithAuthRouter} = require('./userRouter')
 const {safeUserFields} = require('../controllers/userController')
 
 
-const {verifyToken, verifyAccepted, verifyHead} = require("../middleware/auth");
+const {verifyToken, verifyAccepted, verifyAdmin} = require("../middleware/auth");
 
 withAuthRouter.use(verifyToken)
 
@@ -32,7 +32,7 @@ withAuthRouter.use("/questions/:questionID/comments", commentRouterPostGet)
 withAuthRouter.use("/comments/:id", commentRouterPutDelete)
 
 withAuthRouter.use("/releases", releaseRouter)
-withAuthRouter.use("/images", verifyHead, imageRouter)
+withAuthRouter.use("/images", verifyAdmin, imageRouter)
 withAuthRouter.use("/files", fileRouter)
 
 withAuthRouter.use("/documentation", documentationRouter)

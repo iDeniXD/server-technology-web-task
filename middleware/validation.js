@@ -58,7 +58,6 @@ const create_question = async (req, res, next) => {
     const validationRule = {
         "topic": "required|string|min:3|max:50",
         "content": "required|string|min:3|max:2000",
-        "accepted_comment": "string|exists:Comment,_id"
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
@@ -77,7 +76,6 @@ const update_question = async (req, res, next) => {
     const validationRule = {
         "topic": "string|min:3|max:50",
         "content": "string|min:3|max:2000",
-        "accepted_comment": "string|exists:Comment,_id"
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
@@ -95,7 +93,6 @@ const update_question = async (req, res, next) => {
 const comment_validator = async (req, res, next) => {
     const validationRule = {
         "content": "required|string|min:1|max:500",
-        "commentId" : "string|exists:Comment,_id",
     };
     await validator(req.body, validationRule, {}, (status, err) => {
         if (!status) {
@@ -135,9 +132,26 @@ const release_validator = async (req, res, next) => {
 
 const documentation_validator = async (req, res, next) => {
     const rule = {
-        'version': 'required|string',
-        'text': 'required|string|min:200|max:10000',
+        'version': 'required|string|min:1|max:10',
+        'text': 'required|string|min:200|max:50000',
         'images': 'array|max:30',
+    }
+    await validator(req.body, rule, {}, (status, err) => {
+        if (!status) {
+            res.status(412).send({
+                errors: err.errors
+            });
+        } else {
+            next()
+        }
+    }).catch(err => {
+        res.status(412).send()
+    })
+}
+
+const role = async (req, res, next) => {
+    const rule = {
+        'role': 'required|in:admin,head,employee',
     }
     await validator(req.body, rule, {}, (status, err) => {
         if (!status) {
@@ -154,9 +168,9 @@ const documentation_validator = async (req, res, next) => {
 
 const uploadImageError = (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).send({ message: error.message });
     } else if (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).send({ message: error.message });
     }
     next();
 }
@@ -168,5 +182,6 @@ module.exports = {
     comment_validator, 
     release_validator, 
     documentation_validator, 
-    uploadImageError 
+    uploadImageError,
+    role
 };
